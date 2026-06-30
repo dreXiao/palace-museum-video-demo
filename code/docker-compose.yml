@@ -1,0 +1,94 @@
+services:
+  # ── Nginx 反向代理 ──
+  nginx:
+    image: nginx:1.26-alpine
+    ports:
+      - "10080:10080"
+      - "10443:10443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - web-dist:/usr/share/nginx/html:ro
+    depends_on:
+      - server
+    restart: unless-stopped
+
+  # ── FastAPI 服务 ──
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    env_file:
+      - ./server/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── ARQ Worker (视频生成轮询) ──
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    command: arq app.tasks.worker.WorkerSettings --watch
+    env_file:
+      - ./server/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── PostgreSQL 数据库 ──
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: palace_museum
+      POSTGRES_USER: palace
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-palace}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U palace -d palace_museum"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Redis 缓存/队列 ──
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── MinIO 对象存储 ──
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  web-dist:
