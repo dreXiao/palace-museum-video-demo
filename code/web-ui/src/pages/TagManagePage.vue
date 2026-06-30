@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { tagsApi, ApiError } from '@/api/client'
 import type { StyleTag } from '@/types/models'
 import { Plus, Download, Upload, RotateCcw, Edit, Copy, Trash2 } from 'lucide-vue-next'

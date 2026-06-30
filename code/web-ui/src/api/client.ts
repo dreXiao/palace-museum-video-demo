@@ -1,19 +1,18 @@
-import { ofetch } from 'ofetch'
+import { ofetch, type FetchContext, type FetchResponse } from 'ofetch'
 
 const API_BASE = '/api/v1'
 
-export const apiClient = ofetch.create({
+const rawFetch = ofetch.create({
   baseURL: API_BASE,
-  async onRequest({ options }) {
+  async onRequest({ options }: FetchContext) {
     const token = localStorage.getItem('access_token')
     if (token) {
-      options.headers = {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-      }
+      const headers = new Headers(options.headers)
+      headers.set('Authorization', `Bearer ${token}`)
+      options.headers = headers
     }
   },
-  async onResponseError({ response }) {
+  async onResponseError({ response }: FetchContext & { response: FetchResponse<any> }) {
     if (response.status === 401) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
@@ -25,6 +24,19 @@ export const apiClient = ofetch.create({
     throw new ApiError(body?.message || body?.detail || '请求失败', response.status)
   },
 })
+
+// Typed wrapper — ofetch's $Fetch type doesn't expose .get/.post convenience methods,
+// but they work at runtime via Proxy; this wrapper restores type-safe method helpers.
+export const apiClient = {
+  get: <T = any>(path: string, opts?: { params?: Record<string, any> }) =>
+    rawFetch(path, { method: 'GET', query: opts?.params }) as Promise<T>,
+  post: <T = any>(path: string, body?: any) =>
+    rawFetch(path, { method: 'POST', body }) as Promise<T>,
+  put: <T = any>(path: string, body?: any) =>
+    rawFetch(path, { method: 'PUT', body }) as Promise<T>,
+  delete: <T = any>(path: string) =>
+    rawFetch(path, { method: 'DELETE' }) as Promise<T>,
+}
 
 export class ApiError extends Error {
   status: number

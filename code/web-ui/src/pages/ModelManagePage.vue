@@ -14,10 +14,10 @@ const testingModels = ref<Set<string>>(new Set())
 const editForm = ref({
   name: '', provider: '', description: '',
   api_type: 'custom', endpoint: '', api_key_env: '',
-  model_ids: {} as Record<string, string>,
-  parameters: {} as Record<string, any>,
-  pricing: {} as Record<string, any>,
-  generation_config: {} as Record<string, any>,
+  model_ids: '{}',
+  parameters: '{}',
+  pricing: '{}',
+  generation_config: '{}',
 })
 
 onMounted(async () => {
@@ -38,9 +38,10 @@ function openCreate() {
   editForm.value = {
     name: '', provider: '', description: '',
     api_type: 'dashscope', endpoint: '', api_key_env: '',
-    model_ids: {}, parameters: { duration: { min: 4, max: 15, default: 10 }, resolutions: { options: ['720p', '1080p'], default: '1080p' }, audio: { supported: false, default: false }, frameControl: { supported: false }, extended: {} },
-    pricing: { mode: 'per_second', currency: 'CNY', rates: {} },
-    generation_config: { maxConcurrent: 2, pollIntervalMs: 3000, timeoutMs: 300000, retryCount: 2 },
+    model_ids: '{}',
+    parameters: JSON.stringify({ duration: { min: 4, max: 15, default: 10 }, resolutions: { options: ['720p', '1080p'], default: '1080p' }, audio: { supported: false, default: false }, frameControl: { supported: false }, extended: {} }, null, 2),
+    pricing: JSON.stringify({ mode: 'per_second', currency: 'CNY', rates: {} }, null, 2),
+    generation_config: JSON.stringify({ maxConcurrent: 2, pollIntervalMs: 3000, timeoutMs: 300000, retryCount: 2 }, null, 2),
   }
   showEditor.value = true
 }
@@ -51,18 +52,27 @@ function openEdit(model: ModelConfig) {
   editForm.value = {
     name: model.name, provider: model.provider, description: model.description || '',
     api_type: model.apiType, endpoint: model.endpoint, api_key_env: model.apiKeyEnv,
-    model_ids: { ...model.modelIds }, parameters: { ...model.parameters },
-    pricing: { ...model.pricing }, generation_config: { ...(model.generationConfig || {}) },
+    model_ids: JSON.stringify(model.modelIds, null, 2),
+    parameters: JSON.stringify(model.parameters, null, 2),
+    pricing: JSON.stringify(model.pricing, null, 2),
+    generation_config: JSON.stringify(model.generationConfig || {}, null, 2),
   }
   showEditor.value = true
 }
 
 async function saveModel() {
   try {
+    const data = {
+      ...editForm.value,
+      model_ids: JSON.parse(editForm.value.model_ids || '{}'),
+      parameters: JSON.parse(editForm.value.parameters || '{}'),
+      pricing: JSON.parse(editForm.value.pricing || '{}'),
+      generation_config: JSON.parse(editForm.value.generation_config || '{}'),
+    }
     if (editorMode.value === 'create') {
-      await modelsApi.create(editForm.value)
+      await modelsApi.create(data)
     } else if (editingModel.value) {
-      await modelsApi.update(editingModel.value.id, editForm.value)
+      await modelsApi.update(editingModel.value.id, data)
     }
     showEditor.value = false
     await loadModels()

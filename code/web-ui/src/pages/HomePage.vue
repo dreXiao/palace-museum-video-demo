@@ -134,6 +134,7 @@ async function startGeneration() {
 
 function showError(msg: string) { errorToast.value = msg; setTimeout(() => errorToast.value = '', 4000) }
 function showSuccess(msg: string) { successToast.value = msg; setTimeout(() => successToast.value = '', 3000) }
+function triggerFileInput() { (document.getElementById('file-input') as HTMLInputElement)?.click() }
 </script>
 
 <template>
@@ -150,7 +151,7 @@ function showSuccess(msg: string) { successToast.value = msg; setTimeout(() => s
         <div
           @dragover.prevent
           @drop.prevent="handleFileDrop"
-          @click="() => (document.getElementById('file-input') as HTMLInputElement)?.click()"
+          @click="triggerFileInput"
           class="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors min-h-[200px] flex flex-col items-center justify-center"
         >
           <input id="file-input" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" @change="handleFileSelect" />
